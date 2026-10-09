@@ -52,7 +52,7 @@
   <div class="page-heading"><div><h1>Fleet overview</h1><p>A clear view of your plants and the road ahead.</p></div><div class="heading-actions"><span class="demo-badge">DEMO DATA</span><button class="btn" id="simulationBtn"><svg class="icon"><use href="#i-pause"/></svg>Pause simulation</button></div></div>
   <section class="stats" aria-label="Fleet summary"><div class="stat"><div class="stat-icon"><svg class="icon"><use href="#i-plant"/></svg></div><div><div class="stat-label">Active plants</div><div class="stat-number">6</div><div class="stat-note good">All plants operational</div></div></div><div class="stat"><div class="stat-icon orange"><svg class="icon"><use href="#i-truck"/></svg></div><div><div class="stat-label">Total trucks</div><div class="stat-number">24</div><div class="stat-note">Across your network</div></div></div><div class="stat"><div class="stat-icon green"><svg class="icon"><use href="#i-route"/></svg></div><div><div class="stat-label">On the road</div><div class="stat-number">16</div><div class="stat-note good">Delivering & returning</div></div></div><div class="stat"><div class="stat-icon blue"><svg class="icon"><use href="#i-clock"/></svg></div><div><div class="stat-label">At plant</div><div class="stat-number">8</div><div class="stat-note">Loading & ready to go</div></div></div></section>
   <section class="map-card" aria-label="Fleet location map">
-   <div class="map-toolbar"><div class="map-title"><svg class="icon"><use href="#i-map"/></svg><span id="mapScope">Metro region</span><span class="map-subtitle" id="mapSubtitle">6 plants · 24 trucks</span></div><div class="map-filters"><button id="clearFilter" class="filter-clear hidden">Show all</button><label class="switch-label"><input type="checkbox" id="showRoutes" checked>Routes</label><label class="switch-label"><input type="checkbox" id="showLabels" checked>Labels</label></div></div>
+   <div class="map-toolbar"><div class="map-title"><svg class="icon"><use href="#i-map"/></svg><span id="mapScope">Metro region</span><span class="map-subtitle" id="mapSubtitle">6 plants · 24 trucks</span></div><div class="map-filters"><button id="clearFilter" class="filter-clear hidden">Show all</button><label class="switch-label"><select id="mapStyle" style="border:1px solid #e0e5e9; border-radius:4px; font-size:10px;"><option value="osm">Street Map</option><option value="light">Light</option><option value="dark">Dark</option></select></label><label class="switch-label"><input type="checkbox" id="showRoutes" checked>Routes</label><label class="switch-label"><input type="checkbox" id="showLabels" checked>Labels</label></div></div>
    <div class="map-viewport" id="mapViewport" aria-label="Illustrated demo map. Drag to pan; use buttons to zoom.">
     <div id="map" style="width:100%; height:100%; z-index:1;"></div>
     <div class="map-topnote"><span class="live-dot" id="liveDot"></span><span id="liveText">Simulation running</span><span style="color:#c6ccd0">|</span><span class="muted" id="updatedTime">Updating every 3s</span></div>
@@ -77,12 +77,12 @@
 const $=id=>document.getElementById(id);
 const icon=name=>`<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const plants=[
- {id:'P01',name:'Northgate Plant',area:'North industrial district',x:320,y:170},
- {id:'P02',name:'Riverside Plant',area:'Riverside industrial park',x:625,y:430},
- {id:'P03',name:'Westfield Plant',area:'Westfield business district',x:155,y:480},
- {id:'P04',name:'Eastbrook Plant',area:'Eastbrook logistics hub',x:1050,y:300},
- {id:'P05',name:'Southridge Plant',area:'Southridge industrial estate',x:505,y:740},
- {id:'P06',name:'Lakeside Plant',area:'Lakeside development zone',x:1050,y:690}
+ {id:'P01',name:'Bang Sue Plant',area:'North industrial district',x:100.53,y:13.82},
+ {id:'P02',name:'Bang Na Plant',area:'East industrial park',x:100.61,y:13.66},
+ {id:'P03',name:'Rama 2 Plant',area:'South business district',x:100.43,y:13.66},
+ {id:'P04',name:'Min Buri Plant',area:'Eastbrook logistics hub',x:100.72,y:13.81},
+ {id:'P05',name:'Pathum Thani Plant',area:'Northern industrial estate',x:100.52,y:13.98},
+ {id:'P06',name:'Bang Yai Plant',area:'Western development zone',x:100.41,y:13.87}
 ];
 const drivers=['Alex Morgan','Sam Wilson','Jordan Lee','Casey Taylor','Chris Rivera','Jamie Chen','Drew Martin','Taylor Brooks','Robin Ellis','Jesse Kim','Avery Patel','Cameron Ross','Riley Cooper','Morgan Reed','Skyler Davis','Parker James','Dakota Hall','Reese Allen','Rowan Scott','Hayden Baker','Finley Moore','Emerson Clark','Blake Harris','Quinn Adams'];
 const states=['Delivering','Delivering','Returning','At plant','Delivering','Returning','At plant','At plant','Delivering','Delivering','Returning','At plant','Delivering','Returning','Returning','At plant','Delivering','Returning','At plant','At plant','Delivering','Delivering','Returning','At plant'];
@@ -94,21 +94,79 @@ try{const saved=JSON.parse(localStorage.getItem(storageKey)||'null');if(saved&&t
 let draft=Object.fromEntries(trucks.map(t=>[t.id,t.plant]));
 let leafletMap=null, lMarkers={}, lRoutes=[];
 let mode='plants',filterPlant=null,selected=null,simulating=!matchMedia('(prefers-reduced-motion: reduce)').matches,view='tracking',zoom=1,panX=0,panY=0;
-const toLatLng = (x, y) => [13.75 - (y - 450) * 0.0003, 100.5 + (x - 650) * 0.0003];
+const toLatLng = (x, y) => [y, x];
 const plantBy=id=>plants.find(p=>p.id===id);
 const members=id=>trucks.filter(t=>t.plant===id);
 const destinationNames=['Civic Centre · Block A','Parkview Residences','Metro Station Extension','Harbour Heights'];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let currentLayer = null;
+const layers = {
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }),
+  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CartoDB' }),
+  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CartoDB' })
+};
 function buildMap() {
- leafletMap = L.map('map', {zoomControl: false}).setView([13.75, 100.5], 13);
- L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; OpenStreetMap contributors'
- }).addTo(leafletMap);
+ leafletMap = L.map('map', {zoomControl: false}).setView([13.75, 100.5], 11);
+ currentLayer = layers.osm.addTo(leafletMap);
+ document.getElementById('mapStyle').addEventListener('change', (e) => {
+   leafletMap.removeLayer(currentLayer);
+   currentLayer = layers[e.target.value].addTo(leafletMap);
+ });
 }
-function routeFor(t){const p=plantBy(t.plant),i=trucks.indexOf(t)%4;const north=p.y>480;const targetX=Math.max(80,Math.min(1190,p.x+(i%2===0?180:-165)));const targetY=Math.max(95,Math.min(810,p.y+(north?-1:1)*(135+i*36)));return [[p.x,p.y],[p.x,north?690:300],[targetX,north?690:300],[targetX,targetY]];}
+
+const destinations = [
+  { lat: 13.73, lng: 100.52 }, // Siam
+  { lat: 13.75, lng: 100.57 }, // Rama 9
+  { lat: 13.79, lng: 100.55 }, // Chatuchak
+  { lat: 13.71, lng: 100.59 }  // Phra Khanong
+];
+
+const routeCache = {};
+async function fetchRoute(p, destIndex) {
+  const dest = destinations[destIndex];
+  const key = `${p.id}-${destIndex}`;
+  if (routeCache[key]) return routeCache[key];
+  
+  try {
+    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${p.x},${p.y};${dest.lng},${dest.lat}?overview=full&geometries=geojson`);
+    const data = await res.json();
+    if(data.routes && data.routes[0]) {
+      const pts = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]); // [lat, lng]
+      routeCache[key] = pts;
+      return pts;
+    }
+  } catch(e) {}
+  
+  // fallback straight line
+  const pts = [[p.y, p.x], [dest.lat, dest.lng]];
+  routeCache[key] = pts;
+  return pts;
+}
+
+function routeFor(t){
+  const p=plantBy(t.plant);
+  const i=trucks.indexOf(t)%4;
+  const key = `${p.id}-${i}`;
+  if (routeCache[key]) return routeCache[key].map(c => [c[1], c[0]]); // return [x, y] format for compatibility
+  // fallback while loading
+  const dest = destinations[i];
+  return [[p.x, p.y], [dest.lng, dest.lat]];
+}
+
+async function loadAllRoutes() {
+  const promises = [];
+  plants.forEach(p => {
+    for(let i=0; i<4; i++) {
+      // Add slight delay to avoid rate limiting
+      promises.push(new Promise(resolve => setTimeout(() => resolve(fetchRoute(p, i)), i*100)));
+    }
+  });
+  await Promise.all(promises);
+  renderRoutes();
+}
+loadAllRoutes();
 function pointAlong(points,f){let lengths=[],total=0;for(let i=1;i<points.length;i++){const len=Math.hypot(points[i][0]-points[i-1][0],points[i][1]-points[i-1][1]);lengths.push(len);total+=len}let d=Math.max(0,Math.min(1,f))*total;for(let i=0;i<lengths.length;i++){if(d<=lengths[i]&&lengths[i]>0){const r=d/lengths[i];return [points[i][0]+(points[i+1][0]-points[i][0])*r,points[i][1]+(points[i+1][1]-points[i][1])*r]}d-=lengths[i]}return points.at(-1);}
-function truckPoint(t){const p=plantBy(t.plant);if(t.status==='At plant'){const atPlant=members(p.id).filter(a=>a.status==='At plant');return[p.x+47+(atPlant.indexOf(t)%3)*42,p.y-14-Math.floor(atPlant.indexOf(t)/3)*38]}return pointAlong(routeFor(t),t.status==='Returning'?1-t.progress:t.progress);}
+function truckPoint(t){const p=plantBy(t.plant);if(t.status==='At plant'){const atPlant=members(p.id).filter(a=>a.status==='At plant');return[p.x + 0.001 + (atPlant.indexOf(t)%3)*0.001, p.y - 0.001 - Math.floor(atPlant.indexOf(t)/3)*0.001]}return pointAlong(routeFor(t),t.status==='Returning'?1-t.progress:t.progress);}
 function visibleTrucks(){return trucks.filter(t=>!filterPlant||t.plant===filterPlant)}
 function renderList(){
  const query=$('search').value.toLowerCase().trim();
@@ -192,7 +250,7 @@ function renderSettings(){renderSettingsSummary();renderSettingsRows();updateSav
 function toast(msg){$('toast').textContent=msg;$('toast').classList.remove('hidden');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.add('hidden'),4500)}
 function saveAssignments(){trucks.forEach(t=>{if(t.plant!==draft[t.id]){t.plant=draft[t.id];t.progress=.2}});try{localStorage.setItem(storageKey,JSON.stringify(draft));storageAvailable=true}catch(e){storageAvailable=false}if(selected?.type==='truck')filterPlant=trucks.find(t=>t.id===selected.id).plant;renderList();renderMarkers();renderDetail();renderSettings();toast(storageAvailable?'Assignments saved. Your fleet map is up to date.':'Assignments updated for this session. Browser storage is unavailable.')}
 function applyTransform(){}
-function resetMap(){ if(leafletMap) leafletMap.setView([13.75, 100.5], 13); }
+function resetMap(){ if(leafletMap) leafletMap.setView([13.75, 100.5], 11); }
 function changeZoom(delta){ if(leafletMap) leafletMap.setZoom(leafletMap.getZoom() + (delta > 0 ? 1 : -1)); }
 function renderSimControl(){$('simulationBtn').innerHTML=icon(simulating?'pause':'play')+(simulating?'Pause simulation':'Play simulation');$('liveText').textContent=simulating?'Simulation running':'Simulation paused';$('liveDot').style.background=simulating?'#298466':'#a3aab2';$('updatedTime').textContent=simulating?'Updating every 3s':'Positions held'}
 $('trackingNav').onclick=()=>openView('tracking');$('settingsNav').onclick=()=>openView('settings');$('plantsTab').onclick=()=>switchMode('plants');$('trucksTab').onclick=()=>switchMode('trucks');$('search').oninput=renderList;$('clearFilter').onclick=clearSelection;$('showRoutes').onchange=renderRoutes;$('showLabels').onchange=renderMarkers;$('zoomIn').onclick=()=>changeZoom(.2);$('zoomOut').onclick=()=>changeZoom(-.2);$('fitMap').onclick=resetMap;$('assignmentFilter').onchange=renderSettingsRows;$('saveBtn').onclick=saveAssignments;$('discardBtn').onclick=()=>{draft=Object.fromEntries(trucks.map(t=>[t.id,t.plant]));renderSettings();toast('Unsaved changes discarded.')};$('simulationBtn').onclick=()=>{simulating=!simulating;renderSimControl()};
