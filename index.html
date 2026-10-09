@@ -248,7 +248,37 @@ function renderSettings(){renderSettingsSummary();renderSettingsRows();updateSav
 function toast(msg){$('toast').textContent=msg;$('toast').classList.remove('hidden');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.add('hidden'),4500)}
 function saveAssignments(){trucks.forEach(t=>{if(t.plant!==draft[t.id]){t.plant=draft[t.id];t.progress=.2}});try{localStorage.setItem(storageKey,JSON.stringify(draft));storageAvailable=true}catch(e){storageAvailable=false}if(selected?.type==='truck')filterPlant=trucks.find(t=>t.id===selected.id).plant;renderList();renderMarkers();renderDetail();renderSettings();toast(storageAvailable?'Assignments saved. Your fleet map is up to date.':'Assignments updated for this session. Browser storage is unavailable.')}
 function applyTransform(){}
-function resetMap(){ if(leafletMap) leafletMap.setView([13.75, 100.5], 11); }
+function resetMap() {
+  if (!leafletMap) return;
+  if (selected && selected.type === 'truck') {
+    const t = trucks.find(a => a.id === selected.id);
+    const p = plantBy(t.plant);
+    const i = trucks.indexOf(t) % 4;
+    const dest = destinations[i];
+    const bounds = L.latLngBounds([
+      [p.y, p.x], 
+      [dest.lat, dest.lng]
+    ]);
+    const pt = truckPoint(t);
+    bounds.extend([pt[1], pt[0]]);
+    // Check if route exists to include all curvy points
+    const routeKey = p.id + '-' + i;
+    if (routeCache[routeKey]) {
+      routeCache[routeKey].forEach(c => bounds.extend([c[1], c[0]]));
+    }
+    leafletMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+  } else if (selected && selected.type === 'plant') {
+    const p = plantBy(selected.id);
+    const bounds = L.latLngBounds([[p.y, p.x], [p.y, p.x]]);
+    members(p.id).forEach(t => {
+      const dest = destinations[trucks.indexOf(t) % 4];
+      bounds.extend([dest.lat, dest.lng]);
+    });
+    leafletMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+  } else {
+    leafletMap.setView([13.75, 100.5], 11);
+  }
+}
 function changeZoom(delta){ if(leafletMap) leafletMap.setZoom(leafletMap.getZoom() + (delta > 0 ? 1 : -1)); }
 function renderSimControl(){$('simulationBtn').innerHTML=icon(simulating?'pause':'play')+(simulating?'Pause simulation':'Play simulation');$('liveText').textContent=simulating?'Simulation running':'Simulation paused';$('liveDot').style.background=simulating?'#298466':'#a3aab2';$('updatedTime').textContent=simulating?'Updating every 3s':'Positions held'}
 $('trackingNav').onclick=()=>openView('tracking');$('settingsNav').onclick=()=>openView('settings');$('plantsTab').onclick=()=>switchMode('plants');$('trucksTab').onclick=()=>switchMode('trucks');$('search').oninput=renderList;$('clearFilter').onclick=clearSelection;$('showRoutes').onchange=renderRoutes;$('showLabels').onchange=renderMarkers;$('zoomIn').onclick=()=>changeZoom(.2);$('zoomOut').onclick=()=>changeZoom(-.2);$('fitMap').onclick=resetMap;$('assignmentFilter').onchange=renderSettingsRows;$('saveBtn').onclick=saveAssignments;$('discardBtn').onclick=()=>{draft=Object.fromEntries(trucks.map(t=>[t.id,t.plant]));renderSettings();toast('Unsaved changes discarded.')};$('simulationBtn').onclick=()=>{simulating=!simulating;renderSimControl()};
