@@ -22,8 +22,8 @@ If you are an AI assistant (Claude, Cursor, Copilot, ChatGPT, Windsurf, etc.) or
 - **Map Themes**:
   - `OSM Default`: Standard full-color OpenStreetMap.
   - `OSM Clean / Minimal`: Custom CSS-filtered muted map designed for operational dashboards.
-- **6 Realistic Batching Plants**: Located across Bangkok perimeter (Bang Sue, Bang Na, Rama 2, Min Buri, Pathum Thani, Bang Yai).
-- **Realistic Delivery Radius (5–15 km)**: Trucks deliver to construction sites within a realistic operational radius around each specific plant.
+- **6 Simulated Batching Plants (Mockup)**: Located across Bangkok perimeter (Bang Sue, Bang Na, Rama 2, Min Buri, Pathum Thani, Bang Yai) using synthetic mockup coordinates.
+- **Realistic Delivery Radius (Mockup Sites 5–15 km)**: Trucks deliver to mock construction sites within a realistic operational radius around each plant.
 - **Real-Road OSRM Routing**: Trucks simulate movement along actual roads using the Open Source Routing Machine driving API.
 - **Smart Auto-Fit Zoom**:
   - Clicking a truck zooms and fits bounds perfectly between the home plant, current truck position, and the job site.
