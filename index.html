@@ -264,7 +264,7 @@ function resetMap() {
     // Check if route exists to include all curvy points
     const routeKey = p.id + '-' + i;
     if (routeCache[routeKey]) {
-      routeCache[routeKey].forEach(c => bounds.extend([c[1], c[0]]));
+      routeCache[routeKey].forEach(c => bounds.extend(c));
     }
     leafletMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
   } else if (selected && selected.type === 'plant') {
