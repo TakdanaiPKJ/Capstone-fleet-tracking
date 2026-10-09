@@ -12,6 +12,7 @@
 @media(max-width:800px){.topbar{height:65px;padding:0 17px;gap:10px}.brand{font-size:20px}.brandmark{width:30px;height:30px}.mainnav{gap:17px;margin-left:auto}.account{display:none}.navbtn{font-size:11px}.navbtn .icon{width:16px}.shell{height:auto;min-height:calc(100dvh - 65px);flex-direction:column}.sidebar{width:auto;padding:18px 18px 0;border-right:0;border-bottom:1px solid var(--line)}.sidebar-sub{margin-bottom:15px}.sidebar-head{display:none}.sidebar-sub{display:none}.segmented{width:220px;margin-bottom:12px}.searchbox{position:absolute;right:18px;top:83px;width:calc(100% - 270px);margin:0}.list-caption{margin:0 0 8px}.entity-list{display:flex;flex:none;overflow-x:auto;max-height:138px;gap:8px;padding-bottom:8px}.entity{min-width:207px;margin:0;padding:10px}.entity-bottom{margin-top:8px}.sidebar-footer{display:none}.main{padding:22px 18px;gap:18px;overflow:visible}.page-heading h1{font-size:22px}.page-heading p{font-size:11px}.map-card{height:570px;flex:none;min-height:0}.stats{gap:9px}.stat{padding:13px 11px;display:block}.stat-icon{display:none}.stat-label{font-size:10px}.stat-number{font-size:23px}.stat-note{font-size:9px}.settings-view{padding:22px 18px}.settings-footer{bottom:0}.page-foot{margin-top:0}.heading-actions .demo-badge{display:none}.map-title{font-size:11px}.legend{gap:14px;font-size:9px}.legend-right{display:none}}
 @media(max-width:440px){.brand{font-size:18px;gap:6px}.mainnav{gap:13px}.navbtn{font-size:10px;gap:5px}.brandmark{width:26px;height:28px}.navbtn .icon{display:none}.searchbox{width:calc(100% - 207px)}.segmented{width:174px}.segment{font-size:11px}.page-heading{align-items:flex-start}.heading-actions .btn{font-size:10px;padding:9px}.stats{gap:7px}.stat{padding:12px 8px}.stat-note{line-height:1.5}.stat-label{min-height:23px;margin-bottom:3px}.map-toolbar{padding:14px 12px}.map-filters{gap:9px}.legend{gap:10px;padding:12px 10px}.map-card{height:530px}.detail{z-index:1000;width:231px;right:12px;bottom:12px}.map-bottomnote{z-index:1000;max-width:130px;font-size:8px}.assignment-summary{gap:8px}.assignment-plant{padding:12px 10px;gap:7px}.assignment-plant .entity-icon{display:none}.table-top{align-items:flex-start;padding:15px 12px}.table-top select{max-width:130px}.settings-footer{align-items:flex-start;flex-direction:column}.page-foot{font-size:9px}.map-title .icon{display:none}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.clean-map .leaflet-tile-pane { filter: grayscale(1) opacity(0.5) contrast(1.1); }
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -52,7 +53,7 @@
   <div class="page-heading"><div><h1>Fleet overview</h1><p>A clear view of your plants and the road ahead.</p></div><div class="heading-actions"><span class="demo-badge">DEMO DATA</span><button class="btn" id="simulationBtn"><svg class="icon"><use href="#i-pause"/></svg>Pause simulation</button></div></div>
   <section class="stats" aria-label="Fleet summary"><div class="stat"><div class="stat-icon"><svg class="icon"><use href="#i-plant"/></svg></div><div><div class="stat-label">Active plants</div><div class="stat-number">6</div><div class="stat-note good">All plants operational</div></div></div><div class="stat"><div class="stat-icon orange"><svg class="icon"><use href="#i-truck"/></svg></div><div><div class="stat-label">Total trucks</div><div class="stat-number">24</div><div class="stat-note">Across your network</div></div></div><div class="stat"><div class="stat-icon green"><svg class="icon"><use href="#i-route"/></svg></div><div><div class="stat-label">On the road</div><div class="stat-number">16</div><div class="stat-note good">Delivering & returning</div></div></div><div class="stat"><div class="stat-icon blue"><svg class="icon"><use href="#i-clock"/></svg></div><div><div class="stat-label">At plant</div><div class="stat-number">8</div><div class="stat-note">Loading & ready to go</div></div></div></section>
   <section class="map-card" aria-label="Fleet location map">
-   <div class="map-toolbar"><div class="map-title"><svg class="icon"><use href="#i-map"/></svg><span id="mapScope">Metro region</span><span class="map-subtitle" id="mapSubtitle">6 plants · 24 trucks</span></div><div class="map-filters"><button id="clearFilter" class="filter-clear hidden">Show all</button><label class="switch-label"><select id="mapStyle" style="border:1px solid #e0e5e9; border-radius:4px; font-size:10px;"><option value="osm">Street Map</option><option value="light">Light</option><option value="dark">Dark</option></select></label><label class="switch-label"><input type="checkbox" id="showRoutes" checked>Routes</label><label class="switch-label"><input type="checkbox" id="showLabels" checked>Labels</label></div></div>
+   <div class="map-toolbar"><div class="map-title"><svg class="icon"><use href="#i-map"/></svg><span id="mapScope">Metro region</span><span class="map-subtitle" id="mapSubtitle">6 plants · 24 trucks</span></div><div class="map-filters"><button id="clearFilter" class="filter-clear hidden">Show all</button><label class="switch-label"><select id="mapStyle" style="border:1px solid #e0e5e9; border-radius:4px; font-size:10px;"><option value="default">OSM Default</option><option value="clean">OSM Clean / Minimal</option></select></label><label class="switch-label"><input type="checkbox" id="showRoutes" checked>Routes</label><label class="switch-label"><input type="checkbox" id="showLabels" checked>Labels</label></div></div>
    <div class="map-viewport" id="mapViewport" aria-label="Illustrated demo map. Drag to pan; use buttons to zoom.">
     <div id="map" style="width:100%; height:100%; z-index:1;"></div>
     <div class="map-topnote"><span class="live-dot" id="liveDot"></span><span id="liveText">Simulation running</span><span style="color:#c6ccd0">|</span><span class="muted" id="updatedTime">Updating every 3s</span></div>
@@ -99,18 +100,15 @@ const plantBy=id=>plants.find(p=>p.id===id);
 const members=id=>trucks.filter(t=>t.plant===id);
 const destinationNames=['Civic Centre · Block A','Parkview Residences','Metro Station Extension','Harbour Heights'];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let currentLayer = null;
-const layers = {
-  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }),
-  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CartoDB' }),
-  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CartoDB' })
-};
 function buildMap() {
  leafletMap = L.map('map', {zoomControl: false}).setView([13.75, 100.5], 11);
- currentLayer = layers.osm.addTo(leafletMap);
+ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(leafletMap);
  document.getElementById('mapStyle').addEventListener('change', (e) => {
-   leafletMap.removeLayer(currentLayer);
-   currentLayer = layers[e.target.value].addTo(leafletMap);
+   if(e.target.value === 'clean') {
+     document.getElementById('map').classList.add('clean-map');
+   } else {
+     document.getElementById('map').classList.remove('clean-map');
+   }
  });
 }
 
