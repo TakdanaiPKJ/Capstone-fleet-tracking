@@ -24,11 +24,20 @@
 
 ```text
 Capstone/
+├── docs/
+│   ├── presentation/    # Presentation source (HTML) and exported PDF
+│   │   ├── real_time_tracking_presentation.html
+│   │   └── real_time_tracking_presentation.pdf
+│   └── proposal/        # Project proposal and review PDFs (not used by the app)
+│       ├── Proposal-Tracking-EN.pdf
+│       └── Smart Fleet Operations Center for Ready-Mix Concrete Logistics - Tracking (review20261027).pdf
 ├── index.html           # Main production application (HTML, CSS, and JS all-in-one)
 ├── .gitignore           # Standard git ignore (node_modules, .vercel, scratch files)
 ├── PROJECT_CONTEXT.md   # This documentation and AI Agent handoff context file
 └── README.md            # Repository overview
 ```
+
+> `index.html` must stay at the repository root because Vercel serves it from there. The `docs/` folder holds non-app documents and can be changed freely without affecting the deployment.
 
 ### Why Single-File (`index.html`)?
 The application is currently designed as a zero-dependency, standalone single-page application (SPA). It uses CDNs for Leaflet CSS & JS and connects directly to public APIs (OpenStreetMap tile server & OSRM routing). Any static server or Vercel can serve it immediately without a build step (`npm run build`).

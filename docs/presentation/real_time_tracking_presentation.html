@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบติดตามเที่ยวขนส่งและประมาณเวลาถึงแบบเรียลไทม์</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: '#0a192f',
+                        lightNavy: '#112240',
+                        lightestNavy: '#233554',
+                        slate: '#8892b0',
+                        lightSlate: '#a8b2d1',
+                        white: '#e6f1ff',
+                        green: '#64ffda',
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0a192f;
+            color: #e6f1ff;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .slideshow-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .slide {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: calc(100vh - 80px);
+            padding: 2rem 4rem;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .slide.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        /* Navigation Bar */
+        .controls {
+            height: 80px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 4rem;
+            background-color: #112240;
+            border-top: 1px solid #233554;
+        }
+
+        .btn-nav {
+            background-color: transparent;
+            color: #64ffda;
+            border: 1px solid #64ffda;
+            padding: 0.5rem 1.5rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Prompt', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-nav:hover {
+            background-color: rgba(100, 255, 218, 0.1);
+        }
+
+        .btn-nav:disabled {
+            color: #8892b0;
+            border-color: #8892b0;
+            cursor: not-allowed;
+            background: transparent;
+        }
+
+        .slide-counter {
+            color: #a8b2d1;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        /* Reusable Components */
+        .title-text {
+            color: #e6f1ff;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .title-text span {
+            color: #64ffda;
+        }
+
+        .card {
+            background-color: #112240;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px -15px rgba(2,12,27,0.7);
+            transition: transform 0.3s ease;
+            border: 1px solid #233554;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: #64ffda;
+        }
+
+        .icon-large {
+            font-size: 3rem;
+            color: #64ffda;
+            margin-bottom: 1rem;
+        }
+
+        /* Diagrams CSS */
+        .css-diagram-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .diagram-box {
+            background-color: #112240;
+            border: 2px solid #64ffda;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            min-width: 180px;
+            position: relative;
+        }
+
+        .diagram-arrow {
+            color: #a8b2d1;
+            font-size: 2rem;
+        }
+
+        .state-box {
+            background-color: #233554;
+            color: #e6f1ff;
+            padding: 1rem;
+            border-radius: 4px;
+            font-weight: 600;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .math-block {
+            background-color: #112240;
+            padding: 1.5rem;
+            border-left: 4px solid #64ffda;
+            font-family: monospace;
+            font-size: 1.5rem;
+            color: #e6f1ff;
+            margin: 1rem 0;
+        }
+
+        /* Custom Scrollbar for slides with more content */
+        .slide::-webkit-scrollbar {
+            width: 8px;
+        }
+        .slide::-webkit-scrollbar-track {
+            background: #0a192f; 
+        }
+        .slide::-webkit-scrollbar-thumb {
+            background: #233554; 
+            border-radius: 4px;
+        }
+        .slide::-webkit-scrollbar-thumb:hover {
+            background: #64ffda; 
+        }
+    </style>
+</head>
+<body>
+
+<div class="slideshow-container">
+
+    <!-- Slide 1: Title -->
+    <div class="slide active" id="slide-0">
+        <i class="fa-solid fa-truck-fast text-green text-6xl mb-6"></i>
+        <h1 class="text-4xl md:text-5xl font-bold text-center text-white mb-4 leading-snug">
+            ระบบติดตามเที่ยวขนส่งและประมาณเวลาถึง<br><span class="text-green">แบบเรียลไทม์</span>
+        </h1>
+        <h2 class="text-xl md:text-2xl text-slate text-center mb-8">
+            สำหรับรถโม่คอนกรีตผสมเสร็จ (Ready-Mix Concrete)
+        </h2>
+        <div class="bg-lightNavy p-6 rounded-lg border border-lightestNavy text-center max-w-2xl w-full">
+            <p class="text-lightSlate mb-2 font-semibold text-lg">ทีม Scarf</p>
+            <ul class="text-white space-y-2 mb-6">
+                <li><i class="fa-solid fa-user-astronaut text-green mr-2"></i> ป้อมบุญ ป้อมบุญมี</li>
+                <li><i class="fa-solid fa-user-astronaut text-green mr-2"></i> กฤษฎา ลิ้มศรีประพันธ์</li>
+                <li><i class="fa-solid fa-user-astronaut text-green mr-2"></i> ทักษ์ดนัย พรหมขจร</li>
+            </ul>
+            <p class="text-slate text-sm">อาจารย์ที่ปรึกษา: อ.ดร.สุขุม สัตตรัตนามัย</p>
+        </div>
+    </div>
+
+    <!-- Slide 2: Background -->
+    <div class="slide" id="slide-1">
+        <h2 class="title-text">ที่มาและความสำคัญ <span>(Background)</span></h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
+            <div class="card flex flex-col items-center text-center">
+                <i class="fa-regular fa-clock icon-large"></i>
+                <h3 class="text-xl font-bold text-white mb-2">ข้อจำกัดเวลา</h3>
+                <p class="text-lightSlate">ตามมาตรฐาน มอก. คอนกรีตผสมเสร็จต้องถูกเทให้หมดภายใน <span class="text-green font-bold">1 ชม. 30 นาที</span> (90 นาที) เพื่อรักษาคุณภาพ</p>
+            </div>
+            <div class="card flex flex-col items-center text-center">
+                <i class="fa-solid fa-truck-moving icon-large"></i>
+                <h3 class="text-xl font-bold text-white mb-2">สเกลธุรกิจขนาดใหญ่</h3>
+                <p class="text-lightSlate">ฝูงรถโม่มากกว่า <span class="text-green font-bold">90 คัน</span>, แพลนต์ 10-20 แห่ง และมีเที่ยวจัดส่งกว่า <span class="text-green font-bold">300 เที่ยว/วัน</span></p>
+            </div>
+            <div class="card flex flex-col items-center text-center">
+                <i class="fa-solid fa-triangle-exclamation icon-large text-red-400"></i>
+                <h3 class="text-xl font-bold text-white mb-2">ปัญหาของระบบเดิม</h3>
+                <p class="text-lightSlate text-left w-full mt-2"><i class="fa-solid fa-xmark text-red-400 mr-2"></i> ระบบ GPS เดิมไม่มีแนวคิดของ "เที่ยวขนส่ง"<br><i class="fa-solid fa-xmark text-red-400 mr-2"></i> ไม่มีเส้นทางปลายทาง<br><i class="fa-solid fa-xmark text-red-400 mr-2"></i> ไม่มีระบบ ETA (ต้องกะเวลาเอง)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 3: Problem Statement -->
+    <div class="slide" id="slide-2">
+        <h2 class="title-text">ความท้าทายทางวิศวกรรม <span>(Problem Statement)</span></h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-6xl">
+            <div class="card flex items-start gap-4">
+                <i class="fa-solid fa-satellite-dish text-green text-3xl mt-1"></i>
+                <div>
+                    <h3 class="text-lg font-bold text-white">1. Noisy & Sparse Data</h3>
+                    <p class="text-slate text-sm">GPS มีสัญญาณรบกวน และส่งข้อมูลพิกัดเพียงทุกๆ 30 วินาที อาจทำให้พลาดจังหวะการเข้า-ออกขอบเขต</p>
+                </div>
+            </div>
+            <div class="card flex items-start gap-4">
+                <i class="fa-solid fa-route text-green text-3xl mt-1"></i>
+                <div>
+                    <h3 class="text-lg font-bold text-white">2. Uncertainty</h3>
+                    <p class="text-slate text-sm">เวลาเดินทางไม่แน่นอน ผันแปรตามสภาพการจราจรจริงและเวลาการทำงานที่หน้าไซต์</p>
+                </div>
+            </div>
+            <div class="card flex items-start gap-4">
+                <i class="fa-solid fa-network-wired text-green text-3xl mt-1"></i>
+                <div>
+                    <h3 class="text-lg font-bold text-white">3. Asynchronous Integration</h3>
+                    <p class="text-slate text-sm">ตารางงานจากระบบจอง (ภายนอก) อาจมาล่าช้ากว่าการออกเดินทางจริงของรถ</p>
+                </div>
+            </div>
+            <div class="card flex items-start gap-4">
+                <i class="fa-solid fa-server text-green text-3xl mt-1"></i>
+                <div>
+                    <h3 class="text-lg font-bold text-white">4. Scale & Speed</h3>
+                    <p class="text-slate text-sm">ปริมาณข้อมูลสูงถึง 94.6 ล้านแถวต่อปี แต่ระบบต้องแสดงผลการเคลื่อนไหวภายใน 5 วินาที</p>
+                </div>
+            </div>
+            <div class="card flex items-start gap-4">
+                <i class="fa-solid fa-vial-circle-check text-green text-3xl mt-1"></i>
+                <div>
+                    <h3 class="text-lg font-bold text-white">5. Cold Start / Testing</h3>
+                    <p class="text-slate text-sm">ไม่มีข้อมูลจริงในช่วงการพัฒนา ต้องสร้าง Simulator ขั้นสูงเพื่อจำลองและทดสอบระบบ</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 4: Objectives 1-3 -->
+    <div class="slide" id="slide-3">
+        <h2 class="title-text">วัตถุประสงค์ <span>ส่วนที่ 1</span></h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
+            <div class="card relative overflow-hidden">
+                <div class="absolute top-0 left-0 bg-green text-navy font-bold px-3 py-1 rounded-br-lg">O1</div>
+                <div class="mt-6 flex flex-col items-center text-center">
+                    <i class="fa-solid fa-map-location-dot icon-large"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">Real-time Map</h3>
+                    <p class="text-lightSlate">แสดงตำแหน่ง สถานะ และเส้นทางของรถทุกคันบนแผนที่แบบเรียลไทม์ ในหน้าจอเดียว</p>
+                </div>
+            </div>
+            <div class="card relative overflow-hidden">
+                <div class="absolute top-0 left-0 bg-green text-navy font-bold px-3 py-1 rounded-br-lg">O2</div>
+                <div class="mt-6 flex flex-col items-center text-center">
+                    <i class="fa-solid fa-draw-polygon icon-large"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">Auto Event Detection</h3>
+                    <p class="text-lightSlate">ตรวจจับเหตุการณ์และสถานะของเที่ยวขนส่งโดยอัตโนมัติ โดยอาศัยเทคโนโลยี Geofence</p>
+                </div>
+            </div>
+            <div class="card relative overflow-hidden">
+                <div class="absolute top-0 left-0 bg-green text-navy font-bold px-3 py-1 rounded-br-lg">O3</div>
+                <div class="mt-6 flex flex-col items-center text-center">
+                    <i class="fa-solid fa-stopwatch icon-large"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">ETA Engine</h3>
+                    <p class="text-lightSlate">ประมาณเวลาถึงไซต์งาน (Arrival-at-site) และเวลากลับถึงแพลนต์ (Return-to-plant)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 5: Objectives 4-6 -->
+    <div class="slide" id="slide-4">
+        <h2 class="title-text">วัตถุประสงค์ <span>ส่วนที่ 2</span></h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
+            <div class="card relative overflow-hidden">
+                <div class="absolute top-0 left-0 bg-green text-navy font-bold px-3 py-1 rounded-br-lg">O4</div>
+                <div class="mt-6 flex flex-col items-center text-center">
+                    <i class="fa-solid fa-bell icon-large"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">Plan vs Actual & Alerts</h3>
+                    <p class="text-lightSlate">เทียบเวลาตามแผนกับเวลาจริง และแจ้งเตือนทันทีเมื่อพบเที่ยวขนส่งที่มีแนวโน้มล่าช้า</p>
+                </div>
+            </div>
+            <div class="card relative overflow-hidden">
+                <div class="absolute top-0 left-0 bg-green text-navy font-bold px-3 py-1 rounded-br-lg">O5</div>
+                <div class="mt-6 flex flex-col items-center text-center">
+                    <i class="fa-solid fa-desktop icon-large"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">High Usability</h3>
+                    <p class="text-lightSlate">ออกแบบระบบให้ใช้งานง่าย (User Friendly) เพื่อให้เจ้าหน้าที่สามารถย้ายจากระบบเดิมมาใช้งานได้ทันที</p>
+                </div>
+            </div>
+            <div class="card relative overflow-hidden">
+                <div class="absolute top-0 left-0 bg-green text-navy font-bold px-3 py-1 rounded-br-lg">O6</div>
+                <div class="mt-6 flex flex-col items-center text-center">
+                    <i class="fa-solid fa-chart-line icon-large"></i>
+                    <h3 class="text-xl font-bold text-white mb-2">KPIs & Integration</h3>
+                    <p class="text-lightSlate">คำนวณ KPI เก็บประวัติย้อนหลัง และมี API สำหรับส่งข้อมูล ETA กลับไปยังระบบจัดตารางงาน</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 6: Related Work -->
+    <div class="slide" id="slide-5">
+        <h2 class="title-text">การเปรียบเทียบระบบ <span>(Gap Analysis)</span></h2>
+        <div class="w-full max-w-5xl">
+            <div class="bg-lightNavy rounded-lg overflow-hidden border border-lightestNavy">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-lightestNavy text-white">
+                            <th class="p-4 border-b border-navy font-bold text-lg w-1/3">ความสามารถหลัก</th>
+                            <th class="p-4 border-b border-navy text-slate w-1/4">ระบบ GPS เดิม (ปัจจุบัน)</th>
+                            <th class="p-4 border-b border-navy text-slate w-1/4">ระบบ RMC เฉพาะทาง</th>
+                            <th class="p-4 border-b border-navy text-green font-bold w-1/4"><i class="fa-solid fa-star mr-2"></i>ระบบที่นำเสนอ</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-lightSlate">
+                        <tr class="border-b border-lightestNavy hover:bg-[#1a2b4a]">
+                            <td class="p-4 font-semibold text-white">แนวคิดเที่ยวขนส่ง (Trip Notion)</td>
+                            <td class="p-4"><i class="fa-solid fa-xmark text-red-400 mr-2"></i> ไม่มี (มีแค่ POI)</td>
+                            <td class="p-4"><i class="fa-solid fa-check text-green mr-2"></i> มี (ต้องติดเซนเซอร์)</td>
+                            <td class="p-4"><i class="fa-solid fa-check text-green mr-2"></i> มี (ใช้อัลกอริทึม)</td>
+                        </tr>
+                        <tr class="border-b border-lightestNavy hover:bg-[#1a2b4a]">
+                            <td class="p-4 font-semibold text-white">ประมาณเวลาถึง (ETA) แบบเรียลไทม์</td>
+                            <td class="p-4"><i class="fa-solid fa-xmark text-red-400 mr-2"></i> ไม่มี</td>
+                            <td class="p-4"><i class="fa-solid fa-question text-yellow-400 mr-2"></i> ไม่ระบุชัดเจน</td>
+                            <td class="p-4"><i class="fa-solid fa-check text-green mr-2"></i> มี (OSRM + ประวัติ)</td>
+                        </tr>
+                        <tr class="border-b border-lightestNavy hover:bg-[#1a2b4a]">
+                            <td class="p-4 font-semibold text-white">การใช้อุปกรณ์ GPS เดิมที่มีอยู่</td>
+                            <td class="p-4"><i class="fa-solid fa-check text-green mr-2"></i> ใช้ของเดิม</td>
+                            <td class="p-4"><i class="fa-solid fa-xmark text-red-400 mr-2"></i> ต้องซื้อฮาร์ดแวร์ใหม่</td>
+                            <td class="p-4"><i class="fa-solid fa-check text-green mr-2"></i> ซอฟต์แวร์ครอบทับเดิม</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-6 text-center text-slate">
+                <p><strong>ช่องว่าง (Gap):</strong> การสร้าง <em>Software Intelligence</em> ครอบทับอุปกรณ์ที่มีอยู่ เพื่อแปลงข้อมูลดิบให้เป็นข้อมูลเที่ยวขนส่งและ ETA โดยไม่ต้องลงทุนด้านฮาร์ดแวร์เพิ่มเติม</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 7: System Overview -->
+    <div class="slide" id="slide-6">
+        <h2 class="title-text">ภาพรวมระบบ <span>(System Overview)</span></h2>
+        
+        <div class="css-diagram-flow mt-8">
+            <!-- Data Sources -->
+            <div class="flex flex-col gap-4">
+                <div class="diagram-box">
+                    <i class="fa-solid fa-truck text-slate text-2xl mb-2"></i>
+                    <h4 class="font-bold text-white">GPS Data</h4>
+                    <p class="text-xs text-lightSlate">(อุปกรณ์จริง / Simulator)</p>
+                </div>
+                <div class="diagram-box">
+                    <i class="fa-regular fa-calendar-check text-slate text-2xl mb-2"></i>
+                    <h4 class="font-bold text-white">ตารางงาน</h4>
+                    <p class="text-xs text-lightSlate">(ระบบรับงาน กลุ่มที่ 1)</p>
+                </div>
+                <div class="diagram-box">
+                    <i class="fa-solid fa-map text-slate text-2xl mb-2"></i>
+                    <h4 class="font-bold text-white">OSRM</h4>
+                    <p class="text-xs text-lightSlate">(ข้อมูลเส้นทาง / OpenStreetMap)</p>
+                </div>
+            </div>
+
+            <i class="fa-solid fa-arrow-right diagram-arrow"></i>
+
+            <!-- Core System -->
+            <div class="diagram-box border-4 border-green bg-[#112240] p-8 shadow-[0_0_20px_rgba(100,255,218,0.2)]">
+                <i class="fa-solid fa-microchip icon-large"></i>
+                <h3 class="text-2xl font-bold text-white mb-2">Core System</h3>
+                <p class="text-green font-semibold">Trip Tracking & ETA Engine</p>
+                <div class="mt-4 flex gap-2 justify-center text-xs text-lightSlate">
+                    <span class="bg-lightestNavy px-2 py-1 rounded">Live Map</span>
+                    <span class="bg-lightestNavy px-2 py-1 rounded">Trip Events</span>
+                    <span class="bg-lightestNavy px-2 py-1 rounded">KPI</span>
+                </div>
+            </div>
+
+            <i class="fa-solid fa-arrow-right diagram-arrow"></i>
+
+            <!-- Users -->
+            <div class="diagram-box">
+                <i class="fa-solid fa-users-gear icon-large text-lightSlate"></i>
+                <h4 class="font-bold text-white mb-2">ผู้ใช้งาน</h4>
+                <ul class="text-sm text-left text-lightSlate list-disc ml-4 space-y-1">
+                    <li>เจ้าหน้าที่จัดรถ (Dispatcher)</li>
+                    <li>ผู้จัดการแพลนต์</li>
+                    <li>ผู้บริหาร (Executive)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 8: System Architecture -->
+    <div class="slide" id="slide-7">
+        <h2 class="title-text">สถาปัตยกรรมระบบ <span>(System Architecture)</span></h2>
+        <div class="w-full max-w-6xl grid grid-cols-4 gap-4 bg-lightNavy p-6 rounded-lg border border-lightestNavy relative">
+            
+            <!-- Frontend -->
+            <div class="col-span-1 flex flex-col gap-4 border-r border-lightestNavy pr-4">
+                <h3 class="text-green font-bold text-center border-b border-green pb-2">Frontend</h3>
+                <div class="state-box bg-navy border border-slate"><i class="fa-brands fa-react text-blue-400 mr-2"></i>React + Leaflet</div>
+                <div class="text-xs text-slate text-center mt-2">Live Map, Plant Board,<br>Trip List, KPI Dashboard</div>
+            </div>
+
+            <!-- API Layer -->
+            <div class="col-span-1 flex flex-col justify-center items-center gap-4 border-r border-lightestNavy pr-4">
+                <h3 class="text-green font-bold text-center border-b border-green pb-2 w-full">API Layer</h3>
+                <div class="state-box"><i class="fa-solid fa-server mr-2"></i>API Server</div>
+                <div class="text-xs text-green text-center">REST / WebSocket / SSE</div>
+                <div class="state-box bg-navy border border-dashed border-slate mt-2 text-sm"><i class="fa-solid fa-plug mr-2"></i>Integration API (กลุ่ม 1)</div>
+            </div>
+
+            <!-- Backend Services -->
+            <div class="col-span-2 flex flex-col gap-4">
+                <h3 class="text-green font-bold text-center border-b border-green pb-2">Backend Core (Node.js) & Routing</h3>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="state-box bg-[#1a2b4a] border border-lightestNavy text-sm">
+                        <i class="fa-solid fa-filter text-green mr-2 mb-2"></i><br>GPS Ingestion
+                    </div>
+                    <div class="state-box bg-[#1a2b4a] border border-lightestNavy text-sm">
+                        <i class="fa-solid fa-route text-green mr-2 mb-2"></i><br>ETA Engine
+                    </div>
+                    <div class="state-box bg-[#1a2b4a] border border-lightestNavy text-sm">
+                        <i class="fa-solid fa-gears text-green mr-2 mb-2"></i><br>Trip Event Detector
+                    </div>
+                    <div class="state-box bg-navy border border-slate text-sm">
+                        <i class="fa-solid fa-map-location text-blue-300 mr-2 mb-2"></i><br>OSRM (Self-hosted)
+                    </div>
+                </div>
+
+                <!-- Database -->
+                <div class="mt-4 state-box w-full bg-navy border-2 border-slate rounded-xl flex items-center justify-center gap-4 py-4">
+                    <i class="fa-solid fa-database text-3xl text-slate"></i>
+                    <div class="text-left">
+                        <h4 class="font-bold text-white">PostgreSQL 16 + PostGIS 3</h4>
+                        <p class="text-xs text-lightSlate">gps_pings, trips, eta_predictions</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 9: Trip Event Detection -->
+    <div class="slide" id="slide-8">
+        <h2 class="title-text">กลไกการตรวจจับเที่ยว <span>(Trip Event Detection)</span></h2>
+        
+        <div class="w-full max-w-6xl mt-8">
+            <!-- State Machine -->
+            <div class="flex flex-wrap items-center justify-center gap-2 mb-12">
+                <div class="state-box text-slate text-sm">SCHEDULED<br><span class="text-xs font-normal">รอคิว</span></div>
+                <i class="fa-solid fa-chevron-right text-green"></i>
+                <div class="state-box text-slate text-sm">LOADING<br><span class="text-xs font-normal">อยู่ในแพลนต์</span></div>
+                <i class="fa-solid fa-chevron-right text-green"></i>
+                <div class="state-box border-2 border-green text-green text-sm shadow-[0_0_15px_rgba(100,255,218,0.3)]">TO_SITE<br><span class="text-xs font-normal">กำลังไปไซต์</span></div>
+                <i class="fa-solid fa-chevron-right text-green"></i>
+                <div class="state-box border-2 border-green text-green text-sm shadow-[0_0_15px_rgba(100,255,218,0.3)]">ON_SITE<br><span class="text-xs font-normal">รอเท / เท / ล้างราง</span></div>
+                <i class="fa-solid fa-chevron-right text-green"></i>
+                <div class="state-box text-slate text-sm">RETURNING<br><span class="text-xs font-normal">กำลังกลับแพลนต์</span></div>
+                <i class="fa-solid fa-chevron-right text-green"></i>
+                <div class="state-box bg-slate text-navy text-sm">COMPLETED<br><span class="text-xs font-normal">จบเที่ยว</span></div>
+            </div>
+
+            <!-- Geofence Rules -->
+            <div class="grid grid-cols-2 gap-8">
+                <div class="card border-l-4 border-l-blue-400">
+                    <h3 class="text-xl font-bold text-white mb-4"><i class="fa-solid fa-building text-blue-400 mr-2"></i>Geofence Logic & Hysteresis</h3>
+                    <ul class="text-lightSlate space-y-3">
+                        <li><strong>แพลนต์ (Plant):</strong> ระยะขาเข้า <span class="text-green">50m</span> / ขาออก <span class="text-green">80m</span></li>
+                        <li><strong>ไซต์งาน (Site):</strong> ระยะขาเข้า <span class="text-green">100m</span> / ขาออก <span class="text-green">150m</span></li>
+                        <li class="text-sm mt-4 text-slate"><i class="fa-solid fa-circle-info mr-1"></i> การกำหนดระยะต่างกัน (Hysteresis) ช่วยป้องกันระบบสร้างเหตุการณ์หลอกกรณีพิกัด GPS แกว่งอยู่บริเวณขอบ</li>
+                    </ul>
+                </div>
+                <div class="card border-l-4 border-l-green">
+                    <h3 class="text-xl font-bold text-white mb-4"><i class="fa-solid fa-chart-line text-green mr-2"></i>Handling Sparse Data</h3>
+                    <p class="text-lightSlate mb-4">เนื่องจากอุปกรณ์ส่งพิกัดมาทุกๆ 30 วินาที รถอาจจะวิ่งทะลุขอบเขตไปแล้ว</p>
+                    <p class="text-white bg-navy p-3 rounded text-sm font-semibold border border-lightestNavy">
+                        <i class="fa-solid fa-calculator text-green mr-2"></i> ระบบใช้ Linear Interpolation<br>ประมาณค่าเวลาข้ามขอบที่แท้จริงระหว่าง 2 จุดล่าสุด
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 10: ETA Engine -->
+    <div class="slide" id="slide-9">
+        <h2 class="title-text">อัลกอริทึม <span>ETA Engine</span></h2>
+        <div class="w-full max-w-5xl">
+            <p class="text-center text-lightSlate mb-8 text-lg">การคำนวณเวลาถึงไซต์งานและเวลากลับถึงแพลนต์ โดยผสมผสานระบบ Routing และข้อมูลประวัติ</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Formulas -->
+                <div class="flex flex-col justify-center">
+                    <div class="math-block shadow-lg">
+                        <span class="text-slate">ETA_site</span> = t_now + ( <span class="text-green font-bold">f</span> &times; T_base )
+                    </div>
+                    <div class="math-block shadow-lg mt-4">
+                        <span class="text-slate">ETA_plant</span> = ETA_site + <span class="text-blue-400 font-bold">D_site</span> + ( <span class="text-green font-bold">f</span> &times; T_return )
+                    </div>
+                </div>
+
+                <!-- Legend -->
+                <div class="card">
+                    <h3 class="text-lg font-bold text-white mb-4 border-b border-lightestNavy pb-2">ตัวแปรที่ใช้ (Variables)</h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-map-location-dot text-slate text-xl mr-4 mt-1"></i>
+                            <div>
+                                <strong class="text-white">T_base / T_return</strong>
+                                <p class="text-sm text-lightSlate">เวลาเดินทางอ้างอิงจาก OSRM (ไม่รวมผลกระทบการจราจร)</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-clock-rotate-left text-green text-xl mr-4 mt-1"></i>
+                            <div>
+                                <strong class="text-green font-bold text-lg">f (Multiplier)</strong>
+                                <p class="text-sm text-lightSlate">ค่าปรับสถิติจราจรย้อนหลัง แยกตามเส้นทาง(แพลนต์-ไซต์) และรายชั่วโมง ระบบจะอัปเดตค่า <span class="text-white">f</span> ใหม่ทุกคืน</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa-solid fa-hourglass-half text-blue-400 text-xl mr-4 mt-1"></i>
+                            <div>
+                                <strong class="text-blue-400 font-bold text-lg">D_site</strong>
+                                <p class="text-sm text-lightSlate">เวลาปฏิบัติงานประเมินที่หน้าไซต์ (ขึ้นอยู่กับประเภทงานเทและปริมาณคอนกรีต)</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 11: Data Flow & Constraints -->
+    <div class="slide" id="slide-10">
+        <h2 class="title-text">ประสิทธิภาพ & <span>UI Modules</span></h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl">
+            <!-- Constraints -->
+            <div class="flex flex-col gap-6">
+                <h3 class="text-2xl font-bold text-white text-center mb-2">เป้าหมายด้านประสิทธิภาพ</h3>
+                <div class="card flex items-center justify-between border-green">
+                    <div>
+                        <h4 class="text-lg font-bold text-white">UI Map Latency</h4>
+                        <p class="text-sm text-lightSlate">แสดงผลจุดตำแหน่งใหม่บนแผนที่หน้าเว็บ</p>
+                    </div>
+                    <div class="text-4xl font-bold text-green tracking-tighter">&le; 5s</div>
+                </div>
+                <div class="card flex items-center justify-between border-blue-400">
+                    <div>
+                        <h4 class="text-lg font-bold text-white">Integration API</h4>
+                        <p class="text-sm text-lightSlate">ตอบสนองการเรียก API จากระบบกลุ่มที่ 1</p>
+                    </div>
+                    <div class="text-4xl font-bold text-blue-400 tracking-tighter">&le; 500ms</div>
+                </div>
+            </div>
+
+            <!-- UI Modules -->
+            <div class="card flex flex-col">
+                <h3 class="text-2xl font-bold text-white text-center mb-6">Dashboard Modules (React)</h3>
+                <div class="grid grid-cols-2 gap-4 flex-grow">
+                    <div class="bg-navy border border-lightestNavy rounded p-4 text-center hover:border-green transition-colors">
+                        <i class="fa-solid fa-map-marked-alt text-2xl text-green mb-2"></i>
+                        <h4 class="font-bold text-white">Live Map</h4>
+                        <p class="text-xs text-slate mt-1">แผนที่สด เส้นทาง & ETA</p>
+                    </div>
+                    <div class="bg-navy border border-lightestNavy rounded p-4 text-center hover:border-green transition-colors">
+                        <i class="fa-solid fa-building-circle-check text-2xl text-blue-400 mb-2"></i>
+                        <h4 class="font-bold text-white">Plant Board</h4>
+                        <p class="text-xs text-slate mt-1">สถานะรถรายแพลนต์</p>
+                    </div>
+                    <div class="bg-navy border border-lightestNavy rounded p-4 text-center hover:border-green transition-colors">
+                        <i class="fa-solid fa-list-check text-2xl text-yellow-400 mb-2"></i>
+                        <h4 class="font-bold text-white">Trip List</h4>
+                        <p class="text-xs text-slate mt-1">รายการเที่ยว/แจ้งเตือนล่าช้า</p>
+                    </div>
+                    <div class="bg-navy border border-lightestNavy rounded p-4 text-center hover:border-green transition-colors">
+                        <i class="fa-solid fa-chart-pie text-2xl text-purple-400 mb-2"></i>
+                        <h4 class="font-bold text-white">KPI Dashboard</h4>
+                        <p class="text-xs text-slate mt-1">สรุปข้อมูลสำหรับผู้บริหาร</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 12: Teamwork -->
+    <div class="slide" id="slide-11">
+        <h2 class="title-text">ความรับผิดชอบ <span>(Team Scarf)</span></h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
+            <!-- Profile 1 -->
+            <div class="card text-center flex flex-col items-center">
+                <div class="w-24 h-24 bg-lightestNavy rounded-full flex items-center justify-center border-4 border-green mb-4">
+                    <i class="fa-solid fa-user-tie text-4xl text-green"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">นายป้อมบุญ ป้อมบุญมี</h3>
+                <p class="text-green text-sm font-semibold mb-4">Project Lead</p>
+                <ul class="text-lightSlate text-sm text-left w-full space-y-2">
+                    <li><i class="fa-solid fa-caret-right text-green mr-2"></i>ประสานงานกับ Project Owner</li>
+                    <li><i class="fa-solid fa-caret-right text-green mr-2"></i>พัฒนาระบบ ETA Engine</li>
+                    <li><i class="fa-solid fa-caret-right text-green mr-2"></i>ออกแบบ Integration API</li>
+                    <li><i class="fa-solid fa-caret-right text-green mr-2"></i>ดูแลส่วนของ Machine Learning</li>
+                </ul>
+            </div>
+            <!-- Profile 2 -->
+            <div class="card text-center flex flex-col items-center border-t-4 border-t-blue-400">
+                <div class="w-24 h-24 bg-lightestNavy rounded-full flex items-center justify-center border-4 border-blue-400 mb-4">
+                    <i class="fa-solid fa-database text-4xl text-blue-400"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">นายกฤษฎา ลิ้มศรีประพันธ์</h3>
+                <p class="text-blue-400 text-sm font-semibold mb-4">Backend & Database Engineer</p>
+                <ul class="text-lightSlate text-sm text-left w-full space-y-2">
+                    <li><i class="fa-solid fa-caret-right text-blue-400 mr-2"></i>จัดการฐานข้อมูล PostGIS</li>
+                    <li><i class="fa-solid fa-caret-right text-blue-400 mr-2"></i>พัฒนา GPS Ingestion</li>
+                    <li><i class="fa-solid fa-caret-right text-blue-400 mr-2"></i>สร้าง Trip Event Detector</li>
+                    <li><i class="fa-solid fa-caret-right text-blue-400 mr-2"></i>วางระบบ CI/CD & Docker</li>
+                </ul>
+            </div>
+            <!-- Profile 3 -->
+            <div class="card text-center flex flex-col items-center border-t-4 border-t-purple-400">
+                <div class="w-24 h-24 bg-lightestNavy rounded-full flex items-center justify-center border-4 border-purple-400 mb-4">
+                    <i class="fa-solid fa-laptop-code text-4xl text-purple-400"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white">นายทักษ์ดนัย พรหมขจร</h3>
+                <p class="text-purple-400 text-sm font-semibold mb-4">Frontend & UI Engineer</p>
+                <ul class="text-lightSlate text-sm text-left w-full space-y-2">
+                    <li><i class="fa-solid fa-caret-right text-purple-400 mr-2"></i>ออกแบบและพัฒนาหน้าจอทั้งหมด</li>
+                    <li><i class="fa-solid fa-caret-right text-purple-400 mr-2"></i>จัดการแผนที่ Leaflet</li>
+                    <li><i class="fa-solid fa-caret-right text-purple-400 mr-2"></i>สร้าง KPI Dashboard</li>
+                    <li><i class="fa-solid fa-caret-right text-purple-400 mr-2"></i>พัฒนาระบบ Excel Export</li>
+                </ul>
+            </div>
+        </div>
+        <p class="text-slate text-sm mt-6"><i class="fa-solid fa-info-circle mr-1 text-green"></i> ภาระงานเฉลี่ย 12 ชม./คน/สัปดาห์ พร้อมระบบสำรองงาน (Backup Code) ข้ามส่วนงาน</p>
+    </div>
+
+    <!-- Slide 13: Timeline Sem 1 -->
+    <div class="slide" id="slide-12">
+        <h2 class="title-text">ผลการดำเนินงาน <span>ภาคเรียนที่ 1</span></h2>
+        <div class="w-full max-w-4xl relative mt-8">
+            <!-- Timeline Line -->
+            <div class="absolute left-[50%] top-0 bottom-0 w-1 bg-lightestNavy -translate-x-1/2"></div>
+            
+            <div class="flex flex-col gap-10">
+                <!-- Milestone 1 -->
+                <div class="flex justify-between items-center w-full">
+                    <div class="w-[45%] text-right pr-8">
+                        <h3 class="text-xl font-bold text-white">ส.ค. - ต.ค. 2026</h3>
+                        <p class="text-lightSlate text-sm mt-2">ศึกษาธุรกิจ RMC, หน้าจอ GPSIAM, ทำต้นแบบแผนที่ Leaflet และร่างฐานข้อมูล</p>
+                    </div>
+                    <div class="z-10 w-8 h-8 rounded-full bg-navy border-4 border-green flex items-center justify-center">
+                        <i class="fa-solid fa-check text-green text-xs"></i>
+                    </div>
+                    <div class="w-[45%] pl-8 text-green font-bold bg-[#112240] p-3 border border-lightestNavy rounded shadow">
+                        เสร็จสิ้น (Completed)
+                    </div>
+                </div>
+
+                <!-- Milestone 2 -->
+                <div class="flex justify-between items-center w-full">
+                    <div class="w-[45%] text-right pr-8 text-yellow-400 font-bold bg-[#112240] p-3 border border-lightestNavy rounded shadow">
+                        อยู่ระหว่างดำเนินงาน (In Progress)
+                    </div>
+                    <div class="z-10 w-8 h-8 rounded-full bg-navy border-4 border-yellow-400 flex items-center justify-center">
+                        <div class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></div>
+                    </div>
+                    <div class="w-[45%] pl-8">
+                        <h3 class="text-xl font-bold text-white">พ.ย. 2026</h3>
+                        <p class="text-lightSlate text-sm mt-2">กำหนดขอบเขตร่วมกับกลุ่ม 1, ร่าง Proposal, ประชุมขอสิทธิ์ GPSIAM, และตกลง API Interface</p>
+                    </div>
+                </div>
+
+                <!-- Milestone 3 -->
+                <div class="flex justify-between items-center w-full">
+                    <div class="w-[45%] text-right pr-8">
+                        <h3 class="text-xl font-bold text-white">ธ.ค. 2026</h3>
+                        <p class="text-lightSlate text-sm mt-2">ส่ง Proposal ฉบับสมบูรณ์, นำเสนอต่อคณะกรรมการ และสาธิต OSRM Prototype</p>
+                    </div>
+                    <div class="z-10 w-8 h-8 rounded-full bg-navy border-4 border-slate flex items-center justify-center"></div>
+                    <div class="w-[45%] pl-8 text-slate font-bold bg-[#112240] p-3 border border-lightestNavy rounded shadow">
+                        ตามแผน (Planned)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 14: Planned Work Sem 2 -->
+    <div class="slide" id="slide-13">
+        <h2 class="title-text">แผนการดำเนินงาน <span>ภาคเรียนที่ 2 (8 Sprints)</span></h2>
+        
+        <div class="w-full max-w-6xl grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="card p-4 border-t-2 border-t-slate hover:border-t-green">
+                <span class="text-green text-sm font-bold block mb-1">Sprint 1 (ม.ค.)</span>
+                <h4 class="text-white font-bold mb-2 text-sm border-b border-lightestNavy pb-2">Infrastructure</h4>
+                <ul class="text-xs text-lightSlate space-y-1">
+                    <li><i class="fa-solid fa-code text-slate mr-1"></i> Docker & CI/CD</li>
+                    <li><i class="fa-solid fa-database text-slate mr-1"></i> Database PostGIS</li>
+                    <li><i class="fa-solid fa-map text-slate mr-1"></i> Self-hosted OSRM</li>
+                </ul>
+            </div>
+            
+            <div class="card p-4 border-t-2 border-t-slate hover:border-t-green">
+                <span class="text-green text-sm font-bold block mb-1">Sprint 2 (ม.ค.-ก.พ.)</span>
+                <h4 class="text-white font-bold mb-2 text-sm border-b border-lightestNavy pb-2">Core Real-time</h4>
+                <ul class="text-xs text-lightSlate space-y-1">
+                    <li><i class="fa-solid fa-satellite text-slate mr-1"></i> GPS Ingestion</li>
+                    <li><i class="fa-solid fa-map-location text-slate mr-1"></i> Live Map UI</li>
+                </ul>
+            </div>
+            
+            <div class="card p-4 border-t-2 border-t-slate hover:border-t-green">
+                <span class="text-green text-sm font-bold block mb-1">Sprint 3 (ก.พ.)</span>
+                <h4 class="text-white font-bold mb-2 text-sm border-b border-lightestNavy pb-2">Event Detection</h4>
+                <ul class="text-xs text-lightSlate space-y-1">
+                    <li><i class="fa-solid fa-route text-slate mr-1"></i> Trip Event Detector</li>
+                    <li><i class="fa-solid fa-list text-slate mr-1"></i> รายการเที่ยวขนส่ง</li>
+                </ul>
+            </div>
+            
+            <div class="card p-4 border-t-2 border-t-slate hover:border-t-green">
+                <span class="text-green text-sm font-bold block mb-1">Sprint 4 (ก.พ.-มี.ค.)</span>
+                <h4 class="text-white font-bold mb-2 text-sm border-b border-lightestNavy pb-2">ETA & Integration</h4>
+                <ul class="text-xs text-lightSlate space-y-1">
+                    <li><i class="fa-solid fa-stopwatch text-slate mr-1"></i> ETA Baseline</li>
+                    <li><i class="fa-solid fa-plug text-slate mr-1"></i> API Mock Testing</li>
+                </ul>
+            </div>
+
+            <div class="card p-4 border-t-2 border-t-slate hover:border-t-green">
+                <span class="text-green text-sm font-bold block mb-1">Sprint 5 (มี.ค.)</span>
+                <h4 class="text-white font-bold mb-2 text-sm border-b border-lightestNavy pb-2">Historical Adjustment</h4>
+                <ul class="text-xs text-lightSlate space-y-1">
+                    <li><i class="fa-solid fa-clock-rotate-left text-slate mr-1"></i> นำประวัติปรับ ETA</li>
+                    <li><i class="fa-solid fa-desktop text-slate mr-1"></i> Plant Board</li>
+                </ul>
+            </div>
+            
+            <div class="card p-4 border-t-2 border-t-slate hover:border-t-green">
+                <span class="text-green text-sm font-bold block mb-1">Sprint 6 (มี.ค.-เม.ย.)</span>
+                <h4 class="text-white font-bold mb-2 text-sm border-b border-lightestNavy pb-2">Dashboards</h4>
+                <ul class="text-xs text-lightSlate space-y-1">
+                    <li><i class="fa-solid fa-chart-pie text-slate mr-1"></i> KPI Dashboard</li>
+                    <li><i class="fa-solid fa-file-excel text-slate mr-1"></i> Excel Export</li>
+                </ul>
+            </div>
+            
+            <div class="card p-4 border-t-2 border-t-slate hover:border-t-green">
+                <span class="text-green text-sm font-bold block mb-1">Sprint 7 (เม.ย.)</span>
+                <h4 class="text-white font-bold mb-2 text-sm border-b border-lightestNavy pb-2">Testing Phase</h4>
+                <ul class="text-xs text-lightSlate space-y-1">
+                    <li><i class="fa-solid fa-server text-slate mr-1"></i> Load Test (270 คัน)</li>
+                    <li><i class="fa-solid fa-users text-slate mr-1"></i> Usability Test</li>
+                </ul>
+            </div>
+            
+            <div class="card p-4 border-t-2 border-t-green bg-lightestNavy transform scale-105 shadow-xl">
+                <span class="text-white text-sm font-bold block mb-1">Sprint 8 (ปลาย เม.ย.)</span>
+                <h4 class="text-green font-bold mb-2 text-sm border-b border-slate pb-2">Finalization</h4>
+                <ul class="text-xs text-white space-y-1 font-semibold">
+                    <li><i class="fa-solid fa-wrench text-green mr-1"></i> แก้ไขตามผลทดสอบ</li>
+                    <li><i class="fa-solid fa-book text-green mr-1"></i> รายงานฉบับสมบูรณ์</li>
+                    <li><i class="fa-solid fa-microphone text-green mr-1"></i> การนำเสนอ</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 15: Ethics & Privacy -->
+    <div class="slide" id="slide-14">
+        <h2 class="title-text">จริยธรรมและข้อกฎหมาย <span>(Ethics & Privacy)</span></h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl mt-6">
+            <div class="card flex flex-col items-center text-center border-t-4 border-t-green">
+                <i class="fa-solid fa-shield-halved icon-large"></i>
+                <h3 class="text-xl font-bold text-white mb-2">Data Privacy (PDPA)</h3>
+                <p class="text-lightSlate text-sm text-left">ตำแหน่งรถผูกกับคนขับถือเป็นข้อมูลส่วนบุคคล:<br><br>
+                <i class="fa-solid fa-check text-green mr-2"></i> เก็บข้อมูลดิบ (Raw Data) จำกัดเพียง 12 เดือน<br>
+                <i class="fa-solid fa-check text-green mr-2"></i> กำหนดสิทธิ์การเข้าถึงข้อมูลตามบทบาท (Role-based)<br>
+                <i class="fa-solid fa-check text-green mr-2"></i> บันทึก Log ทุกการส่งออกข้อมูล (Export)</p>
+            </div>
+            
+            <div class="card flex flex-col items-center text-center border-t-4 border-t-blue-400">
+                <i class="fa-solid fa-file-contract icon-large text-blue-400"></i>
+                <h3 class="text-xl font-bold text-white mb-2">Licenses & IP</h3>
+                <p class="text-lightSlate text-sm text-left">การเคารพทรัพย์สินทางปัญญาและลิขสิทธิ์ซอฟต์แวร์:<br><br>
+                <i class="fa-solid fa-check text-blue-400 mr-2"></i> แสดงการอ้างอิงลิขสิทธิ์แผนที่ OpenStreetMap (ODbL)<br>
+                <i class="fa-solid fa-check text-blue-400 mr-2"></i> ใช้โอเพนซอร์ส (OSRM, Leaflet) ตามเงื่อนไขอนุญาต<br>
+                <i class="fa-solid fa-check text-blue-400 mr-2"></i> ภายใต้เงื่อนไข NDA ของบริษัท</p>
+            </div>
+            
+            <div class="card flex flex-col items-center text-center border-t-4 border-t-purple-400">
+                <i class="fa-solid fa-graduation-cap icon-large text-purple-400"></i>
+                <h3 class="text-xl font-bold text-white mb-2">Academic Integrity</h3>
+                <p class="text-lightSlate text-sm text-left">ความน่าเชื่อถือและจริยธรรมทางวิชาการ:<br><br>
+                <i class="fa-solid fa-check text-purple-400 mr-2"></i> ตรวจสอบการคัดลอกวรรณกรรม (Plagiarism) ผ่าน Turnitin<br>
+                <i class="fa-solid fa-check text-purple-400 mr-2"></i> แยกผลลัพธ์ข้อมูลทดสอบ (Simulator) ออกจากข้อมูลจริงอย่างชัดเจน</p>
+            </div>
+        </div>
+        
+        <h3 class="text-3xl font-bold text-green mt-12 mb-2 text-center">Thank You</h3>
+        <p class="text-slate text-center">Q & A Session</p>
+    </div>
+
+    <!-- Navigation Controls -->
+    <div class="controls absolute bottom-0 left-0 right-0">
+        <button id="prevBtn" class="btn-nav" onclick="prevSlide()" disabled>
+            <i class="fa-solid fa-arrow-left"></i> Previous
+        </button>
+        
+        <div class="slide-counter">
+            <span id="currentSlideNum">1</span> / 15
+        </div>
+        
+        <button id="nextBtn" class="btn-nav" onclick="nextSlide()">
+            Next <i class="fa-solid fa-arrow-right"></i>
+        </button>
+    </div>
+
+</div>
+
+<script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const counter = document.getElementById('currentSlideNum');
+
+    function updateNav() {
+        // Update Counter
+        counter.innerText = currentSlide + 1;
+        
+        // Update Buttons
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === totalSlides - 1;
+    }
+
+    function showSlide(index) {
+        // Hide all slides
+        slides.forEach(slide => {
+            slide.classList.remove('active');
+        });
+        
+        // Show active slide
+        slides[index].classList.add('active');
+        updateNav();
+    }
+
+    function nextSlide() {
+        if (currentSlide < totalSlides - 1) {
+            currentSlide++;
+            showSlide(currentSlide);
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            showSlide(currentSlide);
+        }
+    }
+
+    // Keyboard Navigation
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === ' ') {
+            nextSlide();
+        } else if (e.key === 'ArrowLeft') {
+            prevSlide();
+        }
+    });
+
+    // Initialize
+    updateNav();
+</script>
+
+</body>
+</html>
